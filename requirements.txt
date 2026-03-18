@@ -1,5 +1,6 @@
 altair
 brokenaxes
+graphviz
 pm4py
 scikit-learn
 streamlit
