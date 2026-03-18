@@ -460,13 +460,6 @@ if "Section" in work.columns:
 def cached_performance_dfg(work, case_col, act_col, time_col):
     return performance_dfg_dot(work, case_col, act_col, time_col)
 
-import graphviz
-
-@st.cache_data(show_spinner=False, max_entries=32)
-def render_dfg_png(dot_src: str) -> bytes:
-    g = graphviz.Source(dot_src, format="png", engine="dot")
-    return g.pipe()  # bytes for PNG
-
 # ---------------------------
 def performance_dfg_dot(df_, case_col, act_col, time_col, max_nodes=50, max_edges=200):
     """
@@ -521,7 +514,7 @@ def performance_dfg_dot(df_, case_col, act_col, time_col, max_nodes=50, max_edge
 
     lines.append("}")
     return "\n".join(lines)
-
+    
 if show_perf:
     st.subheader("⛓️ Performance Directly-Follows Graphs (DFGs)")
 
@@ -547,8 +540,7 @@ if show_perf:
                 col_time
             )
 
-            png_bytes = render_dfg_png(dot)
-            st.image(png_bytes, width='stretch')
+            st.graphviz_chart(dot, width='stretch')
 
             st.markdown("---")
 
@@ -561,8 +553,7 @@ if show_perf:
     )
 
     dot = cached_performance_dfg(work, col_case, col_act, col_time)
-    png_bytes = render_dfg_png(dot)
-    st.image(png_bytes, width='stretch')
+     st.graphviz_chart(dot, width='stretch')
 
 def compute_dfg_counts(df_, case_col, act_col, time_col):
     """
