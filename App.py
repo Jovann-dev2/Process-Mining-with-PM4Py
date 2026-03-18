@@ -1317,7 +1317,7 @@ bars = (
         x=alt.X("Cases skipping:Q", title="Number of Skips"),
         tooltip=[
             alt.Tooltip("Activity:N"),
-            alt.Tooltip("Number of Skips:Q", title="# Cases skipping"),
+            alt.Tooltip("Cases skipping:Q", title="Number of Skips"),
         ],
     )
 )
