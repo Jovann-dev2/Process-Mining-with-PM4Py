@@ -447,18 +447,25 @@ if "Section" in work.columns:
             f"{n_both}"
         )
 
+    st.write('You may consider the details below to see which Case IDs are found in only the CLM data, only the Coupa Core data, and which IDs are used in both sections.')
+    
     with st.expander("Details"):
         st.write("Contracts using only CLM:", only_1[col_case].tolist())
         st.write("Contracts using only Coupa Core:", only_2[col_case].tolist())
         st.write("Contracts using both Sections:", both[col_case].tolist())
-
-    st.write(filtered)
 
 # ---------------------------
 # Performance DFG (client-side DOT render; no graphviz binary needed)
 @st.cache_data
 def cached_performance_dfg(work, case_col, act_col, time_col):
     return performance_dfg_dot(work, case_col, act_col, time_col)
+
+import graphviz
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def render_dfg_png(dot_src: str) -> bytes:
+    g = graphviz.Source(dot_src, format="png", engine="dot")
+    return g.pipe()  # bytes for PNG
 
 # ---------------------------
 def performance_dfg_dot(df_, case_col, act_col, time_col, max_nodes=50, max_edges=200):
@@ -521,12 +528,15 @@ if show_perf:
     if "Section" in work.columns:
         st.write(
             "The dataset contains multiple Sections. "
-            "A separate performance DFG is shown for each Section."
+            "A separate performance DFG is shown for each Section (CLM and Coupa Core)."
         )
 
         # Get unique section labels (e.g., '1', '2')
         for sec in sorted(work["Section"].dropna().unique()):
-            st.markdown(f"### Section {sec}")
+            if sec == 1:
+                st.markdown(f"### Section {sec}: CLM")
+            elif sec == 2:
+                st.markdown(f"### Section {sec}: Coupa Core")
 
             work_section = work[work["Section"] == sec]
 
@@ -537,7 +547,8 @@ if show_perf:
                 col_time
             )
 
-            st.graphviz_chart(dot, width='stretch')
+            png_bytes = render_dfg_png(dot)
+            st.image(png_bytes, width='stretch')
 
             st.markdown("---")
 
@@ -549,8 +560,9 @@ if show_perf:
         "Below is the performance directly-follows graph (DFG) of the full dataset."
     )
 
-    #dot = cached_performance_dfg(work, col_case, col_act, col_time)
-    #st.graphviz_chart(dot, width='stretch')
+    dot = cached_performance_dfg(work, col_case, col_act, col_time)
+    png_bytes = render_dfg_png(dot)
+    st.image(png_bytes, width='stretch')
 
 def compute_dfg_counts(df_, case_col, act_col, time_col):
     """
