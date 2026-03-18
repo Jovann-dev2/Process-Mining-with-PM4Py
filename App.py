@@ -553,7 +553,7 @@ if show_perf:
     )
 
     dot = cached_performance_dfg(work, col_case, col_act, col_time)
-     st.graphviz_chart(dot, width='stretch')
+    st.graphviz_chart(dot, width='stretch')
 
 def compute_dfg_counts(df_, case_col, act_col, time_col):
     """
