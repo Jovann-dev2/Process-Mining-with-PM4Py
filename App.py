@@ -801,9 +801,9 @@ with st.sidebar:
         miner_label = st.selectbox(
             "Discovery algorithm",
             options=[
+                "Manual (select observed flows)",
                 "Inductive Miner (recommended)",
                 "Heuristics Miner",
-                "Manual (select observed flows)",
             ],
             help=(
                 "Inductive Miner creates sound, structured models. Heuristics Miner is useful on noisy logs. "
