@@ -1,10 +1,26 @@
+# -----------------------------------------------------------------------------
+# General imports
+# -----------------------------------------------------------------------------
+
+# Allow forward references in type hints (e.g., using class names before they are defined), improving typing support and avoiding circular reference issues: 
 from __future__ import annotations
 
+# For using raw uploaded file bytes as file-like objects (e.g., io.BytesIO for reading CSVs):
 import io
+
+# For enabling mode specifications to be stored to and read from JSON text files:
 import json
+
+# For providing application-level logging for diagnostics, debugging, and runtime information:
 import logging
+
+# For defining configuration and mapping objects (AppConfig, ColumnMapping):
 from dataclasses import dataclass
+
+# For converting durations in seconds into human-readable time spans:
 from datetime import timedelta
+
+# For type annotations to improve readability, tooling, and error etection:
 from typing import Dict, Iterable, List, Optional, Tuple
 
 # For visualization (graphs):
@@ -24,10 +40,19 @@ import streamlit as st
 # -----------------------------------------------------------------------------
 
 try:
+    # Core pm4py pachage providing process mining algorithms and data structures:
     import pm4py
+
+    # For implementing the Inductive Miner algorithm (an option to discover structured Petri net models):
     from pm4py import discover_petri_net_inductive
+
+    # For implementing the Heuristics Miner algorithm (an option to discover structured Petri net models; for noisy event logs):
     from pm4py.algo.discovery.heuristics import algorithm as heuristics_miner
+
+    # For converting pandas DataFrames into pm4py-compatible event log objects:
     from pm4py.objects.conversion.log import converter as log_converter
+
+    # For rendering Petri nets as Graphiz diagrams and PNG images:
     from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
     PM4PY_AVAILABLE = True
@@ -67,13 +92,22 @@ TIMESTAMP_SYNONYMS = [
     "created_at",
 ]
 
+# Default number of items shown in tables and charts:
 DEFAULT_TOP_N = 20
+
+# Maximum number of activities (nodes) dislayed in a directly-follows graph to avoid clutter:
 MAX_DFG_NODES = 50
+
+# Maximum number of transitions (edges) displayed in a directly-follows graph for readability:
 MAX_DFG_EDGES = 200
 
+# Configures application-wide logging to show informational messages and above:
 logging.basicConfig(level=logging.INFO)
+
+# Creates a module-specifiv logger for emitting log messages from this file:
 LOGGER = logging.getLogger(__name__)
 
+# Configures the Streamlit app title:
 st.set_page_config(page_title="Process Mining Explorer", layout="wide")
 
 # -----------------------------------------------------------------------------
@@ -103,10 +137,11 @@ class ColumnMapping:
 # Utility helpers
 # -----------------------------------------------------------------------------
 
+# This function safely converts a value to string.
 def _safe_text(value: object) -> str:
     return str(value).replace('"', '\\"')
 
-
+# This function coverts a duration in seconds into human-readable time formats.
 def _human_duration(seconds: Optional[float]) -> str:
     if seconds is None or pd.isna(seconds):
         return "n/a"
@@ -114,11 +149,11 @@ def _human_duration(seconds: Optional[float]) -> str:
         return "n/a"
     return str(timedelta(seconds=int(seconds)))
 
-
+# This function computes percentages safely (returning 0.0 when the denominator is zero).
 def _percentage(numerator: int, denominator: int) -> float:
     return 0.0 if denominator == 0 else (numerator / denominator) * 100.0
 
-
+# This function selects a sensible default column index by matching known column name synonyms, falling back to a given index if no match is found.
 def _default_index(columns: List[str], candidates: Iterable[str], fallback: int) -> int:
     lower_map = {str(col).strip().lower(): idx for idx, col in enumerate(columns)}
     for candidate in candidates:
@@ -128,7 +163,7 @@ def _default_index(columns: List[str], candidates: Iterable[str], fallback: int)
         return 0
     return max(0, min(fallback, len(columns) - 1))
 
-
+# This function creates a Strealit download button that lets the user export a DataFrame as a CSV file.
 def _df_download(name: str, df: pd.DataFrame, label: str) -> None:
     st.download_button(
         label=label,
