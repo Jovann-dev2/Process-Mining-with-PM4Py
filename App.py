@@ -63,6 +63,7 @@ except Exception:  # pragma: no cover - optional dependency
 # App configuration
 # -----------------------------------------------------------------------------
 
+# Creating app title and description
 APP_TITLE = "Exploring the Usage of Python for Process Mining"
 APP_DESCRIPTION = (
     "This app explores the usage of Python programming (witht he aid of the pm4py module) in process mining. The app allows the user to upload a file of suitable format and map the columns to specified attributes. After this, the observed process can be identified, visualized, and analyzed. Alternatively, a desired process can be defined and the observed process can be analyzed relative to the desired process. "
@@ -175,12 +176,14 @@ def _df_download(name: str, df: pd.DataFrame, label: str) -> None:
 # -----------------------------------------------------------------------------
 # Cached data loading and transformations
 # -----------------------------------------------------------------------------
+
 @st.cache_data(show_spinner=False)
+# This function reads uploaded CSV file bytes into a pandas DataFrame
 def load_csv(file_bytes: bytes) -> pd.DataFrame:
     return pd.read_csv(io.BytesIO(file_bytes))
 
-
 @st.cache_data(show_spinner=False)
+# This function cleans, validates, parses timestamps, removes invalid rows, and sorts the event log into a consistent format
 def prepare_event_log(
     df: pd.DataFrame,
     case_col: str,
@@ -240,6 +243,7 @@ def prepare_event_log(
 
 
 @st.cache_data(show_spinner=False)
+# This funciton enriches the event log with the next activity, next timestamp, and time difference for each event within a case.
 def build_follows_table(
     df: pd.DataFrame,
     case_col: str,
@@ -253,8 +257,8 @@ def build_follows_table(
     tmp["delta_seconds"] = (tmp["next_timestamp"] - tmp[timestamp_col]).dt.total_seconds()
     return tmp
 
-
 @st.cache_data(show_spinner=False)
+# This function computes directly-follows graph (DFG) statistics, including transition frequencies, durations, and start/end activities.
 def build_dfg_summary(
     df: pd.DataFrame,
     case_col: str,
@@ -293,8 +297,8 @@ def build_dfg_summary(
 
     return dfg, activity_counts, start_activities, end_activities
 
-
 @st.cache_data(show_spinner=False)
+# This function generates a Graphiz DOT representation of a performance-annotated directly-follows graph.
 def performance_dfg_dot(
     df: pd.DataFrame,
     case_col: str,
@@ -332,8 +336,8 @@ def performance_dfg_dot(
     lines.append("}")
     return "\n".join(lines)
 
-
 @st.cache_data(show_spinner=False)
+# This function calculates high-level statistics such as number of events, number of cases, and overall time span.
 def compute_log_summary(df: pd.DataFrame, case_col: str, timestamp_col: str) -> Dict[str, object]:
     if df.empty:
         return {
@@ -353,8 +357,8 @@ def compute_log_summary(df: pd.DataFrame, case_col: str, timestamp_col: str) -> 
         "avg_events_per_case": float(case_sizes.mean()),
     }
 
-
 @st.cache_data(show_spinner=False)
+# This function analyzes how cases are distributed across different sections (e.g., Coupa Core and CLM).
 def compute_section_summary(df: pd.DataFrame, case_col: str) -> Optional[Dict[str, object]]:
     if "Section" not in df.columns:
         return None
@@ -384,6 +388,7 @@ def compute_section_summary(df: pd.DataFrame, case_col: str) -> Optional[Dict[st
 
 
 @st.cache_data(show_spinner=False)
+# This function produces per-case metrics including number of events an total throughput time.
 def compute_case_summary(
     df: pd.DataFrame,
     case_col: str,
@@ -398,8 +403,8 @@ def compute_case_summary(
     summary.rename(columns={case_col: "case_id"}, inplace=True)
     return summary
 
-
 @st.cache_data(show_spinner=False)
+# This function identifies unique execution variants and counts how many cases follow each variant.
 def compute_variants(df: pd.DataFrame, case_col: str, activity_col: str) -> pd.DataFrame:
     variants = (
         df.groupby(case_col)[activity_col]
@@ -413,8 +418,8 @@ def compute_variants(df: pd.DataFrame, case_col: str, activity_col: str) -> pd.D
     variants["variant_display"] = variants["variant"].astype(str).str.slice(0, 120)
     return variants
 
-
 @st.cache_data(show_spinner=False)
+# This function computes activity frequencies and average/median time to the next activity.
 def compute_activity_summary(
     df: pd.DataFrame,
     case_col: str,
@@ -442,8 +447,8 @@ def compute_activity_summary(
     service["Median time to next activity (days)"] = service["Median time to next activity (days)"] / (24 * 3600)
     return activity_freq, service
 
-
 @st.cache_data(show_spinner=False)
+# This function extracts all observed consecutive activity pairs with their time differences.
 def compute_transition_pairs(
     df: pd.DataFrame,
     case_col: str,
@@ -463,8 +468,8 @@ def compute_transition_pairs(
     )
     return transitions[["case_id", "from_activity", "to_activity", "delta_seconds"]]
 
-
 @st.cache_data(show_spinner=False)
+# This function aggregates transition-level performance statistics such as averages and percentiles.
 def compute_transition_stats(pairs_df: pd.DataFrame) -> pd.DataFrame:
     if pairs_df.empty:
         return pd.DataFrame(columns=["from_activity", "to_activity", "count", "avg_days", "p50_days", "p90_days"])
@@ -484,8 +489,8 @@ def compute_transition_stats(pairs_df: pd.DataFrame) -> pd.DataFrame:
         stats[f"{column}_days"] = stats[column] / (24 * 3600)
     return stats.sort_values("avg", ascending=False).reset_index(drop=True)
 
-
 @st.cache_data(show_spinner=False)
+# This function calculates work-in-progress (active cases) over time using case start and end events.
 def compute_wip_series(df: pd.DataFrame, case_col: str, timestamp_col: str) -> pd.DataFrame:
     case_times = df.groupby(case_col).agg(start=(timestamp_col, "min"), end=(timestamp_col, "max")).dropna()
     if case_times.empty:
@@ -502,8 +507,8 @@ def compute_wip_series(df: pd.DataFrame, case_col: str, timestamp_col: str) -> p
     events["wip"] = events["delta"].cumsum()
     return events[["timestamp", "wip"]]
 
-
 @st.cache_data(show_spinner=False)
+# This function determines how often each activity is skipped by case and identifies which cases skipped it.
 def compute_skip_summary(
     df: pd.DataFrame,
     case_col: str,
@@ -535,10 +540,10 @@ def compute_skip_summary(
 
     return pd.DataFrame(rows).sort_values(["Cases skipping", "Activity"], ascending=[False, True]).reset_index(drop=True)
 
-
 # -----------------------------------------------------------------------------
 # pm4py helpers
 # -----------------------------------------------------------------------------
+
 def to_pm4py_event_log(
     df: pd.DataFrame,
     case_col: str,
