@@ -544,6 +544,7 @@ def compute_skip_summary(
 # pm4py helpers
 # -----------------------------------------------------------------------------
 
+# This function converts a pandas DataFrame into a pm4py-compatible event log by renaming columns and parsing timestamps.
 def to_pm4py_event_log(
     df: pd.DataFrame,
     case_col: str,
@@ -581,7 +582,7 @@ def to_pm4py_event_log(
             params = {}
         return log_converter.apply(tmp, variant=log_converter.Variants.TO_EVENT_LOG, parameters=params)
 
-
+# This function transforms a directly-follows graph (DFG) with start and end activities into a Petri net using pm4py conversion utilities.
 def convert_dfg_to_petri(dfg_dict, start_acts, end_acts):
     if not PM4PY_AVAILABLE:
         raise RuntimeError("pm4py is not installed.")
@@ -603,7 +604,7 @@ def convert_dfg_to_petri(dfg_dict, start_acts, end_acts):
     except Exception as exc:
         raise RuntimeError("No compatible DFG → Petri conversion API was found in pm4py.") from exc
 
-
+# This function creates a portable, JSON-representation of a process model; in order to import/load a saved model.
 def build_model_spec(
     model_name: str,
     dfg_dict: Dict[Tuple[str, str], int],
@@ -624,12 +625,12 @@ def build_model_spec(
         "end_activities": {str(activity): int(count) for activity, count in end_acts.items()},
     }
 
-
+# This function serializes a model specification dictionary into UTF-8 encoded JSON text for download or storage.
 def export_model_spec_txt_bytes(model_spec: Dict[str, object]) -> bytes:
     """Serialize model specification to UTF-8 JSON text."""
     return json.dumps(model_spec, indent=2, ensure_ascii=False).encode("utf-8")
 
-
+# This function loads ad validates a saved model specification from a JSON-formatted TXT file.
 def load_model_spec_from_txt(file_bytes: bytes) -> Dict[str, object]:
     """Load and validate a model specification from UTF-8 JSON text."""
     try:
@@ -661,7 +662,7 @@ def load_model_spec_from_txt(file_bytes: bytes) -> Dict[str, object]:
 
     return spec
 
-
+# This function converts a saved model specification back into DFG, start-activity, and end-activity dictionaries.
 def model_spec_to_dfg_components(
     model_spec: Dict[str, object],
 ) -> Tuple[Dict[Tuple[str, str], int], Dict[str, int], Dict[str, int]]:
@@ -690,14 +691,14 @@ def model_spec_to_dfg_components(
 
     return dfg_dict, start_acts, end_acts
 
-
+# This function reconstructs a Petri net and its markings from a stored model specification.
 def build_petri_net_from_model_spec(model_spec: Dict[str, object]):
     """Build a Petri net from a saved model specification."""
     dfg_dict, start_acts, end_acts = model_spec_to_dfg_components(model_spec)
     net, initial_marking, final_marking = convert_dfg_to_petri(dfg_dict, start_acts, end_acts)
     return net, initial_marking, final_marking, dfg_dict, start_acts, end_acts
 
-
+# This function discovers a Petri net model from the event log using the selected pm4py mining algorithm.
 def discover_petri_model(
     df: pd.DataFrame,
     mapping: ColumnMapping,
@@ -722,7 +723,7 @@ def discover_petri_model(
 
     raise ValueError(f"Unsupported miner: {config.miner_label}")
 
-
+# This function renders a Petri net as an image or Graphiz source for visualization.
 def render_petri_net(net, initial_marking, final_marking):
     if not PM4PY_AVAILABLE:
         return None, None
@@ -734,7 +735,7 @@ def render_petri_net(net, initial_marking, final_marking):
         source = getattr(gviz, "source", None)
         return None, source
 
-
+# This function extracts activity labels from a Petri net.
 def get_model_activities(net, fallback_series: pd.Series) -> Tuple[str, ...]:
     try:
         if net is not None:
@@ -745,7 +746,7 @@ def get_model_activities(net, fallback_series: pd.Series) -> Tuple[str, ...]:
         pass
     return tuple(sorted(fallback_series.dropna().astype(str).unique().tolist()))
 
-
+# This function performs conformance checking ebtween the event log and Petri net.
 def compute_conformance(
     df: pd.DataFrame,
     mapping: ColumnMapping,
@@ -828,6 +829,9 @@ def compute_conformance(
 # -----------------------------------------------------------------------------
 # Sidebar
 # -----------------------------------------------------------------------------
+
+# This section creates the sidebar and all options contained within it.
+
 st.title(APP_TITLE)
 st.write(APP_DESCRIPTION)
 
@@ -885,10 +889,12 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Tip: If timestamp parsing fails, specify a format such as %Y-%m-%d %H:%M:%S.")
 
-
 # -----------------------------------------------------------------------------
 # File upload and column mapping
 # -----------------------------------------------------------------------------
+
+# This section ensures that a file can be uploaded and that columns can be mapped to required standards.
+
 uploaded_file = st.file_uploader("📤 Upload CSV event log", type=["csv"])
 if uploaded_file is None:
     st.info("Upload a CSV file to begin.")
@@ -983,18 +989,23 @@ with metric_col4:
 
 _df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download cleaned event log")
 
-
 # -----------------------------------------------------------------------------
 # Tabs
 # -----------------------------------------------------------------------------
+
+# This section simply ensures that there are multiple tabs for different parts of the app.
+
 overview_tab, model_tab, conformance_tab, analytics_tab = st.tabs(
     ["Overview", "Process Model", "Conformance", "Analytics"]
 )
 
-
 # -----------------------------------------------------------------------------
 # Overview tab
 # -----------------------------------------------------------------------------
+
+# This section renders the overview tab.
+
+# Displaying summary statistics
 with overview_tab:
     st.subheader("📊 Log summary")
     span_col1, span_col2 = st.columns(2)
@@ -1003,6 +1014,7 @@ with overview_tab:
     with span_col2:
         st.write(f"**Last event:** {summary['last_event']}")
 
+    # Displaying summary statistics if multiple sections (e.g., Coupa Core and CLM) are mentioned
     if section_summary is not None:
         st.subheader("📚 Section usage summary")
         sec_col1, sec_col2, sec_col3 = st.columns(3)
@@ -1018,16 +1030,19 @@ with overview_tab:
             st.write("**Only Section 2:**", section_summary["only_section_2"])
             st.write("**Both sections:**", section_summary["both_sections"])
 
+    # Building the directly-follows graph (DFG)
     dfg_df, _, _, _ = build_dfg_summary(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
 
     st.subheader("⛓️ Directly-follows graph (DFG)")
     st.caption("Edge labels show frequency and average time between consecutive activities.")
 
+    # Displaying the full DFG (if the relevant option is selected)
     if config.show_full_dfg:
         st.markdown("#### Full process")
         full_dot = performance_dfg_dot(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
         st.graphviz_chart(full_dot, use_container_width=True)
 
+    # Displaying DFGs for different sections (if available and option selected)
     if config.show_section_dfgs and "Section" in event_log_df.columns:
         st.markdown("#### Per section")
         for section_value in sorted(event_log_df["Section"].dropna().unique()):
@@ -1036,6 +1051,7 @@ with overview_tab:
             section_dot = performance_dfg_dot(section_df, mapping.case_id, mapping.activity, mapping.timestamp)
             st.graphviz_chart(section_dot, use_container_width=True)
 
+    # Displaying a table with summary statistics
     with st.expander("Show DFG transition table"):
         dfg_table = dfg_df.copy()
         dfg_table["avg_duration"] = dfg_table["avg_duration_seconds"].map(_human_duration)
@@ -1046,10 +1062,12 @@ with overview_tab:
         )
         _df_download("dfg_transitions.csv", dfg_table, "⬇️ Download DFG transitions")
 
-
 # -----------------------------------------------------------------------------
 # Process model tab
 # -----------------------------------------------------------------------------
+
+# This section renders the process model tab
+
 net = None
 initial_marking = None
 final_marking = None
@@ -1064,6 +1082,7 @@ with model_tab:
     st.subheader("🧭 Process model")
 
     uploaded_model_txt = None
+    # Renders the button for uploading a model to the app
     if config.model_source == "Load model specification (.txt)":
         uploaded_model_txt = st.file_uploader(
             "📥 Upload model specification TXT",
@@ -1078,12 +1097,13 @@ with model_tab:
     else:
         try:
             if config.model_source == "Load model specification (.txt)":
+                
+                # If 'upload a saved model' is selected, load the model from the uploaded file.
                 if uploaded_model_txt is None:
                     st.info("Upload a model TXT file to build the model.")
                 else:
                     model_spec = load_model_spec_from_txt(uploaded_model_txt.getvalue())
                     model_name = str(model_spec.get("model_name", "Loaded model specification")).strip() or "Loaded model specification"
-
                     (
                         net,
                         initial_marking,
@@ -1099,6 +1119,7 @@ with model_tab:
                         st.json(model_spec)
 
             else:
+                # Render block for manually creating a model
                 if config.miner_label == "Manual (select observed flows)":
                     dfg_df, activity_counts, start_activities, end_activities = build_dfg_summary(
                         event_log_df,
@@ -1165,6 +1186,7 @@ with model_tab:
                                 for activity in selected_ends
                             }
 
+                            # Building the Petri net model with the given specifications
                             net, initial_marking, final_marking = convert_dfg_to_petri(
                                 model_dfg_dict,
                                 model_start_acts,
@@ -1172,6 +1194,7 @@ with model_tab:
                             )
                             model_name = "Manual model from selected flows"
 
+                            # Creating a file that can be downloaded and loaded back in in the future
                             model_spec = build_model_spec(
                                 model_name=model_name,
                                 dfg_dict=model_dfg_dict,
@@ -1184,9 +1207,8 @@ with model_tab:
                                 selected[["from_activity", "to_activity", "frequency"]],
                                 use_container_width=True,
                             )
-
+                # Discover Petri net in an algorithmic way
                 else:
-                    # Discover Petri net in the original way
                     net, initial_marking, final_marking, model_name = discover_petri_model(event_log_df, mapping, config)
 
                     # Build a saveable model specification from the current event log DFG
@@ -1204,6 +1226,7 @@ with model_tab:
                     model_start_acts = {str(activity): int(count) for activity, count in start_activities.items()}
                     model_end_acts = {str(activity): int(count) for activity, count in end_activities.items()}
 
+                    # Creating a file that can be downloaded and loaded back in in the future
                     model_spec = build_model_spec(
                         model_name=model_name,
                         dfg_dict=model_dfg_dict,
@@ -1214,6 +1237,7 @@ with model_tab:
             if net is not None and initial_marking is not None and final_marking is not None:
                 st.success(f"Model ready: {model_name}")
 
+                # Displaying the model
                 png_bytes, graphviz_source = render_petri_net(net, initial_marking, final_marking)
                 if png_bytes is not None:
                     st.image(png_bytes, caption=model_name, use_container_width=True)
@@ -1222,6 +1246,7 @@ with model_tab:
                 else:
                     st.info("The model was created, but no renderer was available for preview.")
 
+                # Rendering the button to download model specifications
                 if model_spec is not None:
                     st.download_button(
                         label="⬇️ Download model specification (.txt)",
@@ -1243,10 +1268,12 @@ with model_tab:
                 "or reduce the number of activities in manual mode."
             )
 
-
 # -----------------------------------------------------------------------------
 # Conformance tab
 # -----------------------------------------------------------------------------
+
+# This section renders the conformance tab
+
 with conformance_tab:
     st.subheader("✔️ Conformance checking")
     st.write(
@@ -1265,6 +1292,7 @@ with conformance_tab:
                 "Alignment-based replay can be slow on large logs. Consider Token-Based Replay for a quicker review."
             )
 
+        # Computing fitnesses per case (for conformance checking)
         try:
             fitness_df = compute_conformance(
                 event_log_df,
@@ -1324,7 +1352,6 @@ with conformance_tab:
         except Exception as exc:
             st.error(f"Conformance checking failed: {exc}")
             st.info("If the problem persists, try another miner or update pm4py.")
-
 
 # -----------------------------------------------------------------------------
 # Analytics tab
