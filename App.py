@@ -7,14 +7,22 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Dict, Iterable, List, Optional, Tuple
 
+# For visualization (graphs):
 import altair as alt
+
+# For general mathematical capabilities:
 import numpy as np
+
+# For general dataframe capabilities:
 import pandas as pd
+
+# For displaying the program as a web app:
 import streamlit as st
 
 # -----------------------------------------------------------------------------
-# Optional pm4py support
+# Importing pm4py for identifying processes
 # -----------------------------------------------------------------------------
+
 try:
     import pm4py
     from pm4py import discover_petri_net_inductive
@@ -26,16 +34,16 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     PM4PY_AVAILABLE = False
 
-
 # -----------------------------------------------------------------------------
 # App configuration
 # -----------------------------------------------------------------------------
-APP_TITLE = "🔎 Process Mining Explorer"
+
+APP_TITLE = "Exploring the Usage of Python for Process Mining"
 APP_DESCRIPTION = (
-    "Upload a CSV event log, map the required columns, and explore the process with "
-    "directly-follows graphs, Petri net discovery, conformance checking, and analytics."
+    "This app explores the usage of Python programming (witht he aid of the pm4py module) in process mining. The app allows the user to upload a file of suitable format and map the columns to specified attributes. After this, the observed process can be identified, visualized, and analyzed. Alternatively, a desired process can be defined and the observed process can be analyzed relative to the desired process. "
 )
 
+# Defining some default strings to be identified as a possible case ID column from the given data.
 CASE_SYNONYMS = [
     "case_id",
     "case id",
@@ -45,6 +53,8 @@ CASE_SYNONYMS = [
     "contract id",
     "id",
 ]
+
+# Defining some default strings to be identified as a possible activity column from the given data.
 ACTIVITY_SYNONYMS = ["activity", "task", "event", "step", "action", "status"]
 TIMESTAMP_SYNONYMS = [
     "timestamp",
@@ -66,10 +76,10 @@ LOGGER = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Process Mining Explorer", layout="wide")
 
-
 # -----------------------------------------------------------------------------
 # Data classes
 # -----------------------------------------------------------------------------
+
 @dataclass(frozen=True)
 class AppConfig:
     model_source: str
@@ -82,7 +92,6 @@ class AppConfig:
     timestamp_mode: str
     timestamp_format: Optional[str]
 
-
 @dataclass(frozen=True)
 class ColumnMapping:
     case_id: str
@@ -93,6 +102,7 @@ class ColumnMapping:
 # -----------------------------------------------------------------------------
 # Utility helpers
 # -----------------------------------------------------------------------------
+
 def _safe_text(value: object) -> str:
     return str(value).replace('"', '\\"')
 
@@ -126,7 +136,6 @@ def _df_download(name: str, df: pd.DataFrame, label: str) -> None:
         file_name=name,
         mime="text/csv",
     )
-
 
 # -----------------------------------------------------------------------------
 # Cached data loading and transformations
