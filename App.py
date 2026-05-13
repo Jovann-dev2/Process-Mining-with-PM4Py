@@ -1106,93 +1106,94 @@ with model_tab:
 
             else:
                 # Render block for manually creating a model
-                if config.miner_label == "Manual (select observed flows)":
-                    dfg_df, activity_counts, start_activities, end_activities = build_dfg_summary(
-                        event_log_df,
-                        mapping.case_id,
-                        mapping.activity,
-                        mapping.timestamp,
-                    )
-                    if dfg_df.empty:
-                        st.warning("No directly-follows relations were found, so a Petri net cannot be built.")
-                    else:
-                        st.caption("Select the observed flows and start/end activities that should form the model.")
-                        max_frequency = int(dfg_df["frequency"].max())
-                        min_frequency = st.slider(
-                            "Minimum transition frequency",
-                            min_value=1,
-                            max_value=max_frequency,
-                            value=min(3, max_frequency),
-                            help="Only transitions with at least this frequency are shown.",
+                with st.expander("Model Builder", expanded=True):
+                    if config.miner_label == "Manual (select observed flows)":
+                        dfg_df, activity_counts, start_activities, end_activities = build_dfg_summary(
+                            event_log_df,
+                            mapping.case_id,
+                            mapping.activity,
+                            mapping.timestamp,
                         )
-                        candidates = dfg_df.loc[dfg_df["frequency"] >= min_frequency].copy()
-                        candidates["label"] = candidates.apply(
-                            lambda row: f"{row['from_activity']} → {row['to_activity']} (freq={int(row['frequency'])})",
-                            axis=1,
-                        )
-
-                        selected_labels = st.multiselect(
-                            "Transitions to include",
-                            options=candidates["label"].tolist(),
-                            default=candidates["label"].head(min(15, len(candidates))).tolist(),
-                        )
-
-                        selected = candidates.loc[candidates["label"].isin(selected_labels)].copy()
-                        selected_activities = sorted(
-                            set(selected["from_activity"].tolist()) | set(selected["to_activity"].tolist())
-                        )
-
-                        default_starts = [activity for activity in start_activities if activity in selected_activities] or list(start_activities)
-                        default_ends = [activity for activity in end_activities if activity in selected_activities] or list(end_activities)
-
-                        selected_starts = st.multiselect(
-                            "Start activities",
-                            options=sorted(activity_counts.keys()),
-                            default=sorted(default_starts),
-                        )
-                        selected_ends = st.multiselect(
-                            "End activities",
-                            options=sorted(activity_counts.keys()),
-                            default=sorted(default_ends),
-                        )
-
-                        if selected.empty:
-                            st.info("Select at least one transition to build a Petri net.")
+                        if dfg_df.empty:
+                            st.warning("No directly-follows relations were found, so a Petri net cannot be built.")
                         else:
-                            model_dfg_dict = {
-                                (row.from_activity, row.to_activity): int(row.frequency)
-                                for row in selected.itertuples(index=False)
-                            }
-                            model_start_acts = {
-                                activity: int(start_activities.get(activity, 1))
-                                for activity in selected_starts
-                            }
-                            model_end_acts = {
-                                activity: int(end_activities.get(activity, 1))
-                                for activity in selected_ends
-                            }
-
-                            # Building the Petri net model with the given specifications
-                            net, initial_marking, final_marking = convert_dfg_to_petri(
-                                model_dfg_dict,
-                                model_start_acts,
-                                model_end_acts,
+                            st.caption("Select the observed flows and start/end activities that should form the model.")
+                            max_frequency = int(dfg_df["frequency"].max())
+                            min_frequency = st.slider(
+                                "Minimum transition frequency",
+                                min_value=1,
+                                max_value=max_frequency,
+                                value=min(3, max_frequency),
+                                help="Only transitions with at least this frequency are shown.",
                             )
-                            model_name = "Manual model from selected flows"
-
-                            # Creating a file that can be downloaded and loaded back in in the future
-                            model_spec = build_model_spec(
-                                model_name=model_name,
-                                dfg_dict=model_dfg_dict,
-                                start_acts=model_start_acts,
-                                end_acts=model_end_acts,
+                            candidates = dfg_df.loc[dfg_df["frequency"] >= min_frequency].copy()
+                            candidates["label"] = candidates.apply(
+                                lambda row: f"{row['from_activity']} → {row['to_activity']} (freq={int(row['frequency'])})",
+                                axis=1,
                             )
-
-                            st.markdown("#### Selected flows")
-                            st.dataframe(
-                                selected[["from_activity", "to_activity", "frequency"]],
-                                use_container_width=True,
+    
+                            selected_labels = st.multiselect(
+                                "Transitions to include",
+                                options=candidates["label"].tolist(),
+                                default=candidates["label"].head(min(15, len(candidates))).tolist(),
                             )
+    
+                            selected = candidates.loc[candidates["label"].isin(selected_labels)].copy()
+                            selected_activities = sorted(
+                                set(selected["from_activity"].tolist()) | set(selected["to_activity"].tolist())
+                            )
+    
+                            default_starts = [activity for activity in start_activities if activity in selected_activities] or list(start_activities)
+                            default_ends = [activity for activity in end_activities if activity in selected_activities] or list(end_activities)
+    
+                            selected_starts = st.multiselect(
+                                "Start activities",
+                                options=sorted(activity_counts.keys()),
+                                default=sorted(default_starts),
+                            )
+                            selected_ends = st.multiselect(
+                                "End activities",
+                                options=sorted(activity_counts.keys()),
+                                default=sorted(default_ends),
+                            )
+    
+                            if selected.empty:
+                                st.info("Select at least one transition to build a Petri net.")
+                            else:
+                                model_dfg_dict = {
+                                    (row.from_activity, row.to_activity): int(row.frequency)
+                                    for row in selected.itertuples(index=False)
+                                }
+                                model_start_acts = {
+                                    activity: int(start_activities.get(activity, 1))
+                                    for activity in selected_starts
+                                }
+                                model_end_acts = {
+                                    activity: int(end_activities.get(activity, 1))
+                                    for activity in selected_ends
+                                }
+    
+                                # Building the Petri net model with the given specifications
+                                net, initial_marking, final_marking = convert_dfg_to_petri(
+                                    model_dfg_dict,
+                                    model_start_acts,
+                                    model_end_acts,
+                                )
+                                model_name = "Manual model from selected flows"
+    
+                                # Creating a file that can be downloaded and loaded back in in the future
+                                model_spec = build_model_spec(
+                                    model_name=model_name,
+                                    dfg_dict=model_dfg_dict,
+                                    start_acts=model_start_acts,
+                                    end_acts=model_end_acts,
+                                )
+                                
+                                with st.expander("Selected Flows", expanded=False):
+                                    st.dataframe(
+                                        selected[["from_activity", "to_activity", "frequency"]],
+                                        use_container_width=True,
+                                    )
                 # Discover Petri net in an algorithmic way
                 else:
                     net, initial_marking, final_marking, model_name = discover_petri_model(event_log_df, mapping, config)
