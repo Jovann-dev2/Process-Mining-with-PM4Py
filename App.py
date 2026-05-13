@@ -1003,6 +1003,7 @@ with overview_tab:
         st.write(f"**Last event:** {summary['last_event']}")
 
     # Displaying summary statistics if multiple sections (e.g., Coupa Core and CLM) are mentioned
+    global section_summary
     if section_summary is not None:
         sec_col1, sec_col2, sec_col3 = st.columns(3)
         with sec_col1:
