@@ -916,7 +916,7 @@ with st.expander("Setup", expanded=True):
     with st.expander("Preview Uploaded Data", expanded=False):
         st.dataframe(raw_df.head(20), use_container_width=True)
 
-    st.write("## Column Mapping")
+    st.write("### Column Mapping")
     columns = list(raw_df.columns)
     case_default = _default_index(columns, CASE_SYNONYMS, 0)
     activity_default = _default_index(columns, ACTIVITY_SYNONYMS, 1)
