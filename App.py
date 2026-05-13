@@ -875,6 +875,7 @@ with st.sidebar:
             )
 
     show_full_dfg = st.checkbox("Show full-process DFG", value=True)
+    global section_summary
     if section_summary is not None:
         show_section_dfgs = st.checkbox("Show section-specific DFGs", value=False)
     show_petri_net = st.checkbox("Attempt Petri net discovery", value=True)
@@ -1457,7 +1458,6 @@ with analytics_tab:
 
     # Skip analytics
     st.subheader("Skipped Activities")
-    global section_summary
     if section_summary is not None:
         only_common_cases = st.checkbox(
             "Only include cases that appear in more than one section",
