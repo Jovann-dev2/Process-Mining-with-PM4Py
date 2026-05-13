@@ -895,7 +895,7 @@ with st.sidebar:
 
 # This section ensures that a file can be uploaded and that columns can be mapped to required standards.
 
-uploaded_file = st.file_uploader("📤 Upload CSV event log", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV event log", type=["csv"])
 if uploaded_file is None:
     st.info("Upload a CSV file to begin.")
     st.stop()
@@ -913,7 +913,7 @@ if raw_df.empty:
 with st.expander("🔍 Preview uploaded data", expanded=True):
     st.dataframe(raw_df.head(20), use_container_width=True)
 
-st.subheader("🧩 Map event log columns")
+st.subheader("Map Columns")
 columns = list(raw_df.columns)
 case_default = _default_index(columns, CASE_SYNONYMS, 0)
 activity_default = _default_index(columns, ACTIVITY_SYNONYMS, 1)
@@ -973,21 +973,7 @@ if removed_total > 0:
 summary = compute_log_summary(event_log_df, mapping.case_id, mapping.timestamp)
 section_summary = compute_section_summary(event_log_df, mapping.case_id)
 
-metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-with metric_col1:
-    st.metric("Events", f"{summary['events']:,}")
-with metric_col2:
-    st.metric("Cases", f"{summary['cases']:,}")
-with metric_col3:
-    st.metric("Avg events per case", f"{summary['avg_events_per_case']:.2f}")
-with metric_col4:
-    if summary["first_event"] is not None and summary["last_event"] is not None:
-        span_days = (summary["last_event"] - summary["first_event"]).days
-        st.metric("Observed span (days)", f"{span_days:,}")
-    else:
-        st.metric("Observed span (days)", "n/a")
-
-_df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download cleaned event log")
+_df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download Cleaned and Formatted Event Log")
 
 # -----------------------------------------------------------------------------
 # Tabs
@@ -1007,7 +993,7 @@ overview_tab, model_tab, conformance_tab, analytics_tab = st.tabs(
 
 # Displaying summary statistics
 with overview_tab:
-    st.subheader("📊 Log summary")
+    st.subheader("Log summary")
     span_col1, span_col2 = st.columns(2)
     with span_col1:
         st.write(f"**First event:** {summary['first_event']}")
@@ -1016,7 +1002,6 @@ with overview_tab:
 
     # Displaying summary statistics if multiple sections (e.g., Coupa Core and CLM) are mentioned
     if section_summary is not None:
-        st.subheader("📚 Section usage summary")
         sec_col1, sec_col2, sec_col3 = st.columns(3)
         with sec_col1:
             st.metric("Cases using only Section 1", f"{len(section_summary['only_section_1']):,}")
@@ -1033,7 +1018,7 @@ with overview_tab:
     # Building the directly-follows graph (DFG)
     dfg_df, _, _, _ = build_dfg_summary(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
 
-    st.subheader("⛓️ Directly-follows graph (DFG)")
+    st.subheader("Directly-follows graph (DFG)")
     st.caption("Edge labels show frequency and average time between consecutive activities.")
 
     # Displaying the full DFG (if the relevant option is selected)
@@ -1079,7 +1064,7 @@ model_start_acts: Dict[str, int] = {}
 model_end_acts: Dict[str, int] = {}
 
 with model_tab:
-    st.subheader("🧭 Process model")
+    st.subheader("Process Model")
 
     uploaded_model_txt = None
     # Renders the button for uploading a model to the app
@@ -1275,7 +1260,7 @@ with model_tab:
 # This section renders the conformance tab
 
 with conformance_tab:
-    st.subheader("✔️ Conformance checking")
+    st.subheader("Conformance checking")
     st.write(
         "Conformance checking compares the discovered model to the observed event log. "
         "A fitness score closer to 1.0 means the trace fits the model well."
@@ -1357,7 +1342,7 @@ with conformance_tab:
 # Analytics tab
 # -----------------------------------------------------------------------------
 with analytics_tab:
-    st.header("🔬 Analytics")
+    st.header("Analytics")
 
     case_summary = compute_case_summary(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
     variants_df = compute_variants(event_log_df, mapping.case_id, mapping.activity)
@@ -1377,7 +1362,7 @@ with analytics_tab:
     wip_df = compute_wip_series(event_log_df, mapping.case_id, mapping.timestamp)
 
     # Case-level analytics
-    st.subheader("📦 Case-level analytics")
+    st.subheader("Case-Level Analytics")
     case_col1, case_col2, case_col3 = st.columns(3)
     with case_col1:
         st.metric("Avg events per case", f"{case_summary['events_per_case'].mean():.2f}")
@@ -1414,7 +1399,7 @@ with analytics_tab:
         _df_download("case_summary.csv", display_case_summary, "⬇️ Download case summary")
 
     # Variant analysis
-    st.subheader("🧬 Variant analysis")
+    st.subheader("Variant Analysis")
     top_variants = variants_df.loc[variants_df["cumulative_pct"] <= 80.0].copy()
     if top_variants.empty and not variants_df.empty:
         top_variants = variants_df.head(1).copy()
@@ -1454,7 +1439,7 @@ with analytics_tab:
     _df_download("variants.csv", variants_df, "⬇️ Download variant analysis")
 
     # Activity analytics
-    st.subheader("🏷️ Activity analytics")
+    st.subheader("Activity Analytics")
     act_col1, act_col2 = st.columns(2)
     with act_col1:
         st.write("**Top activities by frequency**")
@@ -1469,7 +1454,7 @@ with analytics_tab:
     _df_download("activity_service_time.csv", activity_service_df, "⬇️ Download activity service-time summary")
 
     # Skip analytics
-    st.subheader("🚫 Skipped activities")
+    st.subheader("Skipped Activities")
     if section_summary is not None:
         only_common_cases = st.checkbox(
             "Only include cases that appear in more than one section",
@@ -1534,7 +1519,7 @@ with analytics_tab:
     _df_download("cases_skipping_activities.csv", long_skip_df, "⬇️ Download skipped-activity pairs")
 
     # Transition analytics
-    st.subheader("➡️ Transition analytics")
+    st.subheader("Transition Analytics")
     st.write("**Slowest transitions by average duration**")
     transition_display = transition_stats_df.copy()
     st.dataframe(
@@ -1580,7 +1565,7 @@ with analytics_tab:
         _df_download("transition_stats.csv", transition_stats_df, "⬇️ Download transition statistics")
 
     # Work in progress
-    st.subheader("📈 Work-in-progress (WIP) over time")
+    st.subheader("Work-in-Progress (WIP) over Time")
     if wip_df.empty:
         st.info("Not enough information is available to compute WIP.")
     else:
