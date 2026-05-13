@@ -1520,7 +1520,7 @@ with analytics_tab:
             for row in skip_df.itertuples(index=False):
                 activity = row[0]
                 case_ids = row[5]
-                with st.expander(f"Number of cases: {activity} — {len(case_ids)}"):
+                with st.expander(f"Number of cases that skipped \'{activity}\': {len(case_ids)}"):
                     if not case_ids:
                         st.caption("All cases include this activity.")
                     else:
