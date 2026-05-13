@@ -1374,6 +1374,7 @@ with analytics_tab:
     # Case-level analytics
     with case_tab:
         st.subheader("Case-Level Analytics")
+        st.write("The statistics below depict the number of activities/events through which Case IDs went.")
         case_col1, case_col2, case_col3 = st.columns(3)
         with case_col1:
             st.metric("Avg events per case", f"{case_summary['events_per_case'].mean():.2f}")
@@ -1416,7 +1417,7 @@ with analytics_tab:
         if top_variants.empty and not variants_df.empty:
             top_variants = variants_df.head(1).copy()
     
-        st.write(f"Showing {len(top_variants):,} variant(s) needed to cover roughly 80% of the dataset.")
+        st.write("Below is the top variants observed in the process. The graph below the table compares the number of times variants were observed.")
         st.dataframe(
             top_variants[["variant_display", "number_of_cases", "cumulative_cases", "cumulative_pct"]],
             use_container_width=True,
@@ -1455,10 +1456,10 @@ with analytics_tab:
         st.subheader("Activity Analytics")
         act_col1, act_col2 = st.columns(2)
         with act_col1:
-            st.write("**Top activities by frequency**")
+            st.write("Below is the top activities observed in the process (by frequency).")
             st.dataframe(activity_freq_df.head(DEFAULT_TOP_N), use_container_width=True)
         with act_col2:
-            st.write("**Activities with longest average time to next step**")
+            st.write("Below is the top activities observed in the process (by time to next step).")
             st.dataframe(
                 activity_service_df.sort_values("Average time to next activity (days)", ascending=False).head(DEFAULT_TOP_N),
                 use_container_width=True,
@@ -1487,12 +1488,13 @@ with analytics_tab:
         activity_universe = get_model_activities(net, analysis_df[mapping.activity])
         skip_df = compute_skip_summary(analysis_df, mapping.case_id, mapping.activity, activity_universe)
         top_k = st.slider(
-            "Number of skipped activities to plot",
+            "Please indicate the number of activities to show in the plot.",
             min_value=5,
             max_value=max(5, len(skip_df) if not skip_df.empty else 5),
             value=min(15, max(5, len(skip_df) if not skip_df.empty else 5)),
         )
-    
+
+        st.write("The plot below indicates how many times an activity was skipped in the defined process.")
         skip_chart = (
             alt.Chart(skip_df.head(top_k))
             .mark_bar(color="#EF4444")
@@ -1503,7 +1505,8 @@ with analytics_tab:
             )
         )
         st.altair_chart(skip_chart, use_container_width=True)
-    
+
+        st.write("Below are some statistics regarding skipped activiies.")
         skip_table = skip_df.rename(
             columns={
                 "Cases skipping": "Total skips",
@@ -1535,7 +1538,7 @@ with analytics_tab:
     # Transition analytics
     with transitions_tab:
         st.subheader("Transition Analytics")
-        st.write("**Slowest transitions by average duration**")
+        st.write("Below is a table ranking the slowest transitions (on average) observed in the process.")
         transition_display = transition_stats_df.copy()
         st.dataframe(
             transition_display[
@@ -1558,7 +1561,7 @@ with analytics_tab:
                 .drop_duplicates()
                 .assign(label=lambda frame: frame["from_activity"] + " → " + frame["to_activity"])
             )
-            selected_transition = st.selectbox("Choose a transition", transition_options["label"].tolist())
+            selected_transition = st.selectbox("Please select a transition for which the histogram will be generated. The histogram will visualize the distribution on how long it takes to move between the two activities.", transition_options["label"].tolist())
             selected_from, selected_to = selected_transition.split(" → ", 1)
             selected_transition_df = transition_pairs_df.loc[
                 (transition_pairs_df["from_activity"] == selected_from)
@@ -1582,6 +1585,7 @@ with analytics_tab:
     # Work in progress
     with wip_tab:
         st.subheader("Work-in-Progress (WIP) over Time")
+        st.write("The graph below shows how many Case IDs are yet to reach the final activity, over time.")
         if wip_df.empty:
             st.info("Not enough information is available to compute WIP.")
         else:
