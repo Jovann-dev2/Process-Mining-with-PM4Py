@@ -66,7 +66,7 @@ except Exception:  # pragma: no cover - optional dependency
 # Creating app title and description
 APP_TITLE = "Exploring the Usage of Python for Process Mining"
 APP_DESCRIPTION = (
-    "This app explores the usage of Python programming (witht he aid of the pm4py module) in process mining. The app allows the user to upload a file of suitable format and map the columns to specified attributes. After this, the observed process can be identified, visualized, and analyzed. Alternatively, a desired process can be defined and the observed process can be analyzed relative to the desired process. "
+    "This app explores the usage of Python programming (with the aid of the pm4py module) in process mining. The app allows the user to upload a file of suitable format and map the columns to specified attributes. After this, the observed process can be identified, visualized, and analyzed. Alternatively, a desired process can be defined and the observed process can be analyzed relative to the desired process. "
 )
 
 # Defining some default strings to be identified as a possible case ID column from the given data.
@@ -1468,7 +1468,7 @@ with analytics_tab:
     _df_download("activity_frequency.csv", activity_freq_df, "⬇️ Download activity frequency")
     _df_download("activity_service_time.csv", activity_service_df, "⬇️ Download activity service-time summary")
 
-    # Skip analysis
+    # Skip analytics
     st.subheader("🚫 Skipped activities")
     if section_summary is not None:
         only_common_cases = st.checkbox(
