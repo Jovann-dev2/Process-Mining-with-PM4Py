@@ -1346,245 +1346,259 @@ with conformance_tab:
 with analytics_tab:
     st.header("Analytics")
 
+    case_tab, variants_tab, activity_tab, skipped_tab, transitions_tab, wip_tab = st.tabs(
+        ["Case-Level Analytics", "Variant Analytics", "Activity Analytics", "Skipped Activities", "Work-in-Progress (WIP) over Time", ]
+    )
+
     case_summary = compute_case_summary(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
+
     variants_df = compute_variants(event_log_df, mapping.case_id, mapping.activity)
+
     activity_freq_df, activity_service_df = compute_activity_summary(
-        event_log_df,
-        mapping.case_id,
-        mapping.activity,
-        mapping.timestamp,
-    )
+            event_log_df,
+            mapping.case_id,
+            mapping.activity,
+            mapping.timestamp,
+        )
+
     transition_pairs_df = compute_transition_pairs(
-        event_log_df,
-        mapping.case_id,
-        mapping.activity,
-        mapping.timestamp,
-    )
+            event_log_df,
+            mapping.case_id,
+            mapping.activity,
+            mapping.timestamp,
+        )
     transition_stats_df = compute_transition_stats(transition_pairs_df)
+
     wip_df = compute_wip_series(event_log_df, mapping.case_id, mapping.timestamp)
 
     # Case-level analytics
-    st.subheader("Case-Level Analytics")
-    case_col1, case_col2, case_col3 = st.columns(3)
-    with case_col1:
-        st.metric("Avg events per case", f"{case_summary['events_per_case'].mean():.2f}")
-    with case_col2:
-        st.metric(
-            "Median events per case",
-            f"{case_summary['events_per_case'].median():.0f}",
+    with case_tab:
+        st.subheader("Case-Level Analytics")
+        case_col1, case_col2, case_col3 = st.columns(3)
+        with case_col1:
+            st.metric("Avg events per case", f"{case_summary['events_per_case'].mean():.2f}")
+        with case_col2:
+            st.metric(
+                "Median events per case",
+                f"{case_summary['events_per_case'].median():.0f}",
+            )
+        with case_col3:
+            avg_throughput = case_summary["throughput_seconds"].mean()
+            st.metric("Avg throughput", _human_duration(avg_throughput))
+    
+        event_count_distribution = (
+            case_summary["events_per_case"].value_counts().sort_index().rename_axis("events_per_case").reset_index(name="case_count")
         )
-    with case_col3:
-        avg_throughput = case_summary["throughput_seconds"].mean()
-        st.metric("Avg throughput", _human_duration(avg_throughput))
-
-    event_count_distribution = (
-        case_summary["events_per_case"].value_counts().sort_index().rename_axis("events_per_case").reset_index(name="case_count")
-    )
-    events_chart = (
-        alt.Chart(event_count_distribution)
-        .mark_bar(color="#4F46E5")
-        .encode(
-            x=alt.X("events_per_case:O", title="Events per case", sort=None),
-            y=alt.Y("case_count:Q", title="Cases"),
-            tooltip=["events_per_case:Q", "case_count:Q"],
+        events_chart = (
+            alt.Chart(event_count_distribution)
+            .mark_bar(color="#4F46E5")
+            .encode(
+                x=alt.X("events_per_case:O", title="Events per case", sort=None),
+                y=alt.Y("case_count:Q", title="Cases"),
+                tooltip=["events_per_case:Q", "case_count:Q"],
+            )
         )
-    )
-    st.altair_chart(events_chart, use_container_width=True)
-
-    with st.expander("Show case-level table"):
-        display_case_summary = case_summary.copy()
-        display_case_summary["throughput"] = display_case_summary["throughput_seconds"].map(_human_duration)
-        st.dataframe(
-            display_case_summary[["case_id", "events_per_case", "start", "end", "throughput"]],
-            use_container_width=True,
-        )
-        _df_download("case_summary.csv", display_case_summary, "⬇️ Download case summary")
+        st.altair_chart(events_chart, use_container_width=True)
+    
+        with st.expander("Show case-level table"):
+            display_case_summary = case_summary.copy()
+            display_case_summary["throughput"] = display_case_summary["throughput_seconds"].map(_human_duration)
+            st.dataframe(
+                display_case_summary[["case_id", "events_per_case", "start", "end", "throughput"]],
+                use_container_width=True,
+            )
+            _df_download("case_summary.csv", display_case_summary, "⬇️ Download case summary")
 
     # Variant analysis
-    st.subheader("Variant Analysis")
-    top_variants = variants_df.loc[variants_df["cumulative_pct"] <= 80.0].copy()
-    if top_variants.empty and not variants_df.empty:
-        top_variants = variants_df.head(1).copy()
-
-    st.write(f"Showing {len(top_variants):,} variant(s) needed to cover roughly 80% of the dataset.")
-    st.dataframe(
-        top_variants[["variant_display", "number_of_cases", "cumulative_cases", "cumulative_pct"]],
-        use_container_width=True,
-    )
-
-    top_variant_plot = top_variants.reset_index(drop=True).copy()
-    top_variant_plot["variant_no"] = top_variant_plot.index.astype(str)
-
-    variant_bar = (
-        alt.Chart(top_variant_plot)
-        .mark_bar(color="#4F46E5")
-        .encode(
-            x=alt.X("variant_no:N", title="Variant #", sort=None),
-            y=alt.Y("number_of_cases:Q", title="Cases"),
-            tooltip=[
-                alt.Tooltip("variant_no:N", title="Variant #"),
-                alt.Tooltip("number_of_cases:Q", title="Cases"),
-                alt.Tooltip("variant_display:N", title="Variant"),
-            ],
-        )
-    )
-    variant_line = (
-        alt.Chart(top_variant_plot)
-        .mark_line(color="#DC2626", point=True)
-        .encode(
-            x=alt.X("variant_no:N", sort=None),
-            y=alt.Y("cumulative_pct:Q", title="Cumulative %"),
-            tooltip=[alt.Tooltip("cumulative_pct:Q", format=".1f")],
-        )
-    )
-    st.altair_chart(variant_bar + variant_line, use_container_width=True)
-    _df_download("variants.csv", variants_df, "⬇️ Download variant analysis")
-
-    # Activity analytics
-    st.subheader("Activity Analytics")
-    act_col1, act_col2 = st.columns(2)
-    with act_col1:
-        st.write("**Top activities by frequency**")
-        st.dataframe(activity_freq_df.head(DEFAULT_TOP_N), use_container_width=True)
-    with act_col2:
-        st.write("**Activities with longest average time to next step**")
+    with variants_tab:
+        st.subheader("Variant Analytics")
+        top_variants = variants_df.loc[variants_df["cumulative_pct"] <= 80.0].copy()
+        if top_variants.empty and not variants_df.empty:
+            top_variants = variants_df.head(1).copy()
+    
+        st.write(f"Showing {len(top_variants):,} variant(s) needed to cover roughly 80% of the dataset.")
         st.dataframe(
-            activity_service_df.sort_values("Average time to next activity (days)", ascending=False).head(DEFAULT_TOP_N),
+            top_variants[["variant_display", "number_of_cases", "cumulative_cases", "cumulative_pct"]],
             use_container_width=True,
         )
-    _df_download("activity_frequency.csv", activity_freq_df, "⬇️ Download activity frequency")
-    _df_download("activity_service_time.csv", activity_service_df, "⬇️ Download activity service-time summary")
+    
+        top_variant_plot = top_variants.reset_index(drop=True).copy()
+        top_variant_plot["variant_no"] = top_variant_plot.index.astype(str)
+    
+        variant_bar = (
+            alt.Chart(top_variant_plot)
+            .mark_bar(color="#4F46E5")
+            .encode(
+                x=alt.X("variant_no:N", title="Variant #", sort=None),
+                y=alt.Y("number_of_cases:Q", title="Cases"),
+                tooltip=[
+                    alt.Tooltip("variant_no:N", title="Variant #"),
+                    alt.Tooltip("number_of_cases:Q", title="Cases"),
+                    alt.Tooltip("variant_display:N", title="Variant"),
+                ],
+            )
+        )
+        variant_line = (
+            alt.Chart(top_variant_plot)
+            .mark_line(color="#DC2626", point=True)
+            .encode(
+                x=alt.X("variant_no:N", sort=None),
+                y=alt.Y("cumulative_pct:Q", title="Cumulative %"),
+                tooltip=[alt.Tooltip("cumulative_pct:Q", format=".1f")],
+            )
+        )
+        st.altair_chart(variant_bar + variant_line, use_container_width=True)
+        _df_download("variants.csv", variants_df, "⬇️ Download variant analysis")
+
+    # Activity analytics
+    with activity_tab:
+        st.subheader("Activity Analytics")
+        act_col1, act_col2 = st.columns(2)
+        with act_col1:
+            st.write("**Top activities by frequency**")
+            st.dataframe(activity_freq_df.head(DEFAULT_TOP_N), use_container_width=True)
+        with act_col2:
+            st.write("**Activities with longest average time to next step**")
+            st.dataframe(
+                activity_service_df.sort_values("Average time to next activity (days)", ascending=False).head(DEFAULT_TOP_N),
+                use_container_width=True,
+            )
+        _df_download("activity_frequency.csv", activity_freq_df, "⬇️ Download activity frequency")
+        _df_download("activity_service_time.csv", activity_service_df, "⬇️ Download activity service-time summary")
 
     # Skip analytics
-    st.subheader("Skipped Activities")
-    if section_summary is not None:
-        only_common_cases = st.checkbox(
-            "Only include cases that appear in more than one section",
-            value=False,
-            help="Useful when Section 1 and Section 2 represent different systems for the same business object.",
+    with skipped_tab:
+        st.subheader("Skipped Activities")
+        if section_summary is not None:
+            only_common_cases = st.checkbox(
+                "Only include cases that appear in more than one section",
+                value=False,
+                help="Useful when Section 1 and Section 2 represent different systems for the same business object.",
+            )
+        else:
+            only_common_cases = False
+    
+        if only_common_cases and section_summary is not None:
+            analysis_df = event_log_df.loc[event_log_df[mapping.case_id].isin(section_summary["common_cases"])].copy()
+            st.caption(f"Skip analysis is restricted to {analysis_df[mapping.case_id].nunique():,} shared case(s).")
+        else:
+            analysis_df = event_log_df
+    
+        activity_universe = get_model_activities(net, analysis_df[mapping.activity])
+        skip_df = compute_skip_summary(analysis_df, mapping.case_id, mapping.activity, activity_universe)
+        top_k = st.slider(
+            "Number of skipped activities to plot",
+            min_value=5,
+            max_value=max(5, len(skip_df) if not skip_df.empty else 5),
+            value=min(15, max(5, len(skip_df) if not skip_df.empty else 5)),
         )
-    else:
-        only_common_cases = False
-
-    if only_common_cases and section_summary is not None:
-        analysis_df = event_log_df.loc[event_log_df[mapping.case_id].isin(section_summary["common_cases"])].copy()
-        st.caption(f"Skip analysis is restricted to {analysis_df[mapping.case_id].nunique():,} shared case(s).")
-    else:
-        analysis_df = event_log_df
-
-    activity_universe = get_model_activities(net, analysis_df[mapping.activity])
-    skip_df = compute_skip_summary(analysis_df, mapping.case_id, mapping.activity, activity_universe)
-    top_k = st.slider(
-        "Number of skipped activities to plot",
-        min_value=5,
-        max_value=max(5, len(skip_df) if not skip_df.empty else 5),
-        value=min(15, max(5, len(skip_df) if not skip_df.empty else 5)),
-    )
-
-    skip_chart = (
-        alt.Chart(skip_df.head(top_k))
-        .mark_bar(color="#EF4444")
-        .encode(
-            y=alt.Y("Activity:N", sort="-x", title="Activity"),
-            x=alt.X("Cases skipping:Q", title="Cases skipping"),
-            tooltip=["Activity:N", alt.Tooltip("Cases skipping:Q"), alt.Tooltip("Share skipping (%):Q", format=".1f")],
+    
+        skip_chart = (
+            alt.Chart(skip_df.head(top_k))
+            .mark_bar(color="#EF4444")
+            .encode(
+                y=alt.Y("Activity:N", sort="-x", title="Activity"),
+                x=alt.X("Cases skipping:Q", title="Cases skipping"),
+                tooltip=["Activity:N", alt.Tooltip("Cases skipping:Q"), alt.Tooltip("Share skipping (%):Q", format=".1f")],
+            )
         )
-    )
-    st.altair_chart(skip_chart, use_container_width=True)
-
-    skip_table = skip_df.rename(
-        columns={
-            "Cases skipping": "Total skips",
-            "Share skipping (%)": "Skip share (%)",
-            "Cases present": "Cases executing activity",
-            "Total cases": "Total cases",
-        }
-    )
-    st.dataframe(
-        skip_table[["Activity", "Total skips", "Skip share (%)", "Cases executing activity", "Total cases"]],
-        use_container_width=True,
-    )
-
-    with st.expander("Explore case IDs skipping each activity"):
-        for row in skip_df.itertuples(index=False):
-            activity = row[0]
-            case_ids = row[5]
-            with st.expander(f"{activity} — {len(case_ids)} case(s) skipping"):
-                if not case_ids:
-                    st.caption("All cases include this activity.")
-                else:
-                    st.write(", ".join(map(str, case_ids)))
-
-    long_skip_df = skip_df[["Activity", "Missing case IDs"]].explode("Missing case IDs").rename(
-        columns={"Missing case IDs": "Case ID"}
-    )
-    _df_download("cases_skipping_activities.csv", long_skip_df, "⬇️ Download skipped-activity pairs")
+        st.altair_chart(skip_chart, use_container_width=True)
+    
+        skip_table = skip_df.rename(
+            columns={
+                "Cases skipping": "Total skips",
+                "Share skipping (%)": "Skip share (%)",
+                "Cases present": "Cases executing activity",
+                "Total cases": "Total cases",
+            }
+        )
+        st.dataframe(
+            skip_table[["Activity", "Total skips", "Skip share (%)", "Cases executing activity", "Total cases"]],
+            use_container_width=True,
+        )
+    
+        with st.expander("Explore case IDs skipping each activity"):
+            for row in skip_df.itertuples(index=False):
+                activity = row[0]
+                case_ids = row[5]
+                with st.expander(f"{activity} — {len(case_ids)} case(s) skipping"):
+                    if not case_ids:
+                        st.caption("All cases include this activity.")
+                    else:
+                        st.write(", ".join(map(str, case_ids)))
+    
+        long_skip_df = skip_df[["Activity", "Missing case IDs"]].explode("Missing case IDs").rename(
+            columns={"Missing case IDs": "Case ID"}
+        )
+        _df_download("cases_skipping_activities.csv", long_skip_df, "⬇️ Download skipped-activity pairs")
 
     # Transition analytics
-    st.subheader("Transition Analytics")
-    st.write("**Slowest transitions by average duration**")
-    transition_display = transition_stats_df.copy()
-    st.dataframe(
-        transition_display[
-            [
-                "from_activity",
-                "to_activity",
-                "count",
-                "avg_days",
-                "p50_days",
-                "p90_days",
-                "p95_days",
-            ]
-        ].head(DEFAULT_TOP_N),
-        use_container_width=True,
-    )
-
-    if not transition_pairs_df.empty:
-        transition_options = (
-            transition_pairs_df[["from_activity", "to_activity"]]
-            .drop_duplicates()
-            .assign(label=lambda frame: frame["from_activity"] + " → " + frame["to_activity"])
+    with transitions_tab:
+        st.subheader("Transition Analytics")
+        st.write("**Slowest transitions by average duration**")
+        transition_display = transition_stats_df.copy()
+        st.dataframe(
+            transition_display[
+                [
+                    "from_activity",
+                    "to_activity",
+                    "count",
+                    "avg_days",
+                    "p50_days",
+                    "p90_days",
+                    "p95_days",
+                ]
+            ].head(DEFAULT_TOP_N),
+            use_container_width=True,
         )
-        selected_transition = st.selectbox("Choose a transition", transition_options["label"].tolist())
-        selected_from, selected_to = selected_transition.split(" → ", 1)
-        selected_transition_df = transition_pairs_df.loc[
-            (transition_pairs_df["from_activity"] == selected_from)
-            & (transition_pairs_df["to_activity"] == selected_to)
-        ].copy()
-        selected_transition_df["days"] = selected_transition_df["delta_seconds"] / (24 * 3600)
-
-        hist = (
-            alt.Chart(selected_transition_df)
-            .mark_bar(color="#4F46E5", opacity=0.75)
-            .encode(
-                x=alt.X("days:Q", bin=alt.Bin(maxbins=40), title="Duration (days)"),
-                y=alt.Y("count():Q", title="Frequency"),
-                tooltip=[alt.Tooltip("count():Q", title="Frequency")],
+    
+        if not transition_pairs_df.empty:
+            transition_options = (
+                transition_pairs_df[["from_activity", "to_activity"]]
+                .drop_duplicates()
+                .assign(label=lambda frame: frame["from_activity"] + " → " + frame["to_activity"])
             )
-        )
-        st.altair_chart(hist, use_container_width=True)
-        _df_download("transition_pairs.csv", transition_pairs_df, "⬇️ Download transition pairs")
-        _df_download("transition_stats.csv", transition_stats_df, "⬇️ Download transition statistics")
+            selected_transition = st.selectbox("Choose a transition", transition_options["label"].tolist())
+            selected_from, selected_to = selected_transition.split(" → ", 1)
+            selected_transition_df = transition_pairs_df.loc[
+                (transition_pairs_df["from_activity"] == selected_from)
+                & (transition_pairs_df["to_activity"] == selected_to)
+            ].copy()
+            selected_transition_df["days"] = selected_transition_df["delta_seconds"] / (24 * 3600)
+    
+            hist = (
+                alt.Chart(selected_transition_df)
+                .mark_bar(color="#4F46E5", opacity=0.75)
+                .encode(
+                    x=alt.X("days:Q", bin=alt.Bin(maxbins=40), title="Duration (days)"),
+                    y=alt.Y("count():Q", title="Frequency"),
+                    tooltip=[alt.Tooltip("count():Q", title="Frequency")],
+                )
+            )
+            st.altair_chart(hist, use_container_width=True)
+            _df_download("transition_pairs.csv", transition_pairs_df, "⬇️ Download transition pairs")
+            _df_download("transition_stats.csv", transition_stats_df, "⬇️ Download transition statistics")
 
     # Work in progress
-    st.subheader("Work-in-Progress (WIP) over Time")
-    if wip_df.empty:
-        st.info("Not enough information is available to compute WIP.")
-    else:
-        if len(wip_df) > 5000:
-            step = max(1, len(wip_df) // 2000)
-            wip_plot_df = wip_df.iloc[::step, :].copy()
+    with wip_tab:
+        st.subheader("Work-in-Progress (WIP) over Time")
+        if wip_df.empty:
+            st.info("Not enough information is available to compute WIP.")
         else:
-            wip_plot_df = wip_df.copy()
-
-        wip_chart = (
-            alt.Chart(wip_plot_df)
-            .mark_line(color="#2563EB")
-            .encode(
-                x=alt.X("timestamp:T", title="Time"),
-                y=alt.Y("wip:Q", title="Active cases"),
-                tooltip=["timestamp:T", "wip:Q"],
+            if len(wip_df) > 5000:
+                step = max(1, len(wip_df) // 2000)
+                wip_plot_df = wip_df.iloc[::step, :].copy()
+            else:
+                wip_plot_df = wip_df.copy()
+    
+            wip_chart = (
+                alt.Chart(wip_plot_df)
+                .mark_line(color="#2563EB")
+                .encode(
+                    x=alt.X("timestamp:T", title="Time"),
+                    y=alt.Y("wip:Q", title="Active cases"),
+                    tooltip=["timestamp:T", "wip:Q"],
+                )
             )
-        )
-        st.altair_chart(wip_chart, use_container_width=True)
-        _df_download("wip_timeseries.csv", wip_df, "⬇️ Download WIP time series")
+            st.altair_chart(wip_chart, use_container_width=True)
+            _df_download("wip_timeseries.csv", wip_df, "⬇️ Download WIP time series")
