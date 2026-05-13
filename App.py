@@ -876,7 +876,7 @@ with st.sidebar:
 
     show_full_dfg = st.checkbox("Show full-process DFG", value=True)
     global section_summary
-    if section_summary is not None:
+    if section_summary is None:
         show_section_dfgs = st.checkbox("Show section-specific DFGs", value=False)
     show_petri_net = st.checkbox("Attempt Petri net discovery", value=True)
 
