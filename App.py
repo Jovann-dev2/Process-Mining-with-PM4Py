@@ -875,9 +875,7 @@ with st.sidebar:
             )
 
     show_full_dfg = st.checkbox("Show full-process DFG", value=True)
-    global section_summary
-    if section_summary is not None:
-        show_section_dfgs = st.checkbox("Show section-specific DFGs", value=False)
+    show_section_dfgs = st.checkbox("Show section-specific DFGs (if available)", value=False)
     show_petri_net = st.checkbox("Attempt Petri net discovery", value=True)
 
     conformance_metric = st.selectbox(
@@ -975,7 +973,6 @@ with st.expander("Setup", expanded=True):
     
     summary = compute_log_summary(event_log_df, mapping.case_id, mapping.timestamp)
     section_summary = compute_section_summary(event_log_df, mapping.case_id)
-    global section_summary
     
     _df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download Cleaned and Formatted Event Log")
 
