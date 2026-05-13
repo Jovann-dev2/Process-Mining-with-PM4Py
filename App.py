@@ -1194,32 +1194,32 @@ with model_tab:
                                         selected[["from_activity", "to_activity", "frequency"]],
                                         use_container_width=True,
                                     )
-                # Discover Petri net in an algorithmic way
-                else:
-                    net, initial_marking, final_marking, model_name = discover_petri_model(event_log_df, mapping, config)
-
-                    # Build a saveable model specification from the current event log DFG
-                    dfg_df, _, start_activities, end_activities = build_dfg_summary(
-                        event_log_df,
-                        mapping.case_id,
-                        mapping.activity,
-                        mapping.timestamp,
-                    )
-
-                    model_dfg_dict = {
-                        (row.from_activity, row.to_activity): int(row.frequency)
-                        for row in dfg_df.itertuples(index=False)
-                    }
-                    model_start_acts = {str(activity): int(count) for activity, count in start_activities.items()}
-                    model_end_acts = {str(activity): int(count) for activity, count in end_activities.items()}
-
-                    # Creating a file that can be downloaded and loaded back in in the future
-                    model_spec = build_model_spec(
-                        model_name=model_name,
-                        dfg_dict=model_dfg_dict,
-                        start_acts=model_start_acts,
-                        end_acts=model_end_acts,
-                    )
+                    # Discover Petri net in an algorithmic way
+                    else:
+                        net, initial_marking, final_marking, model_name = discover_petri_model(event_log_df, mapping, config)
+    
+                        # Build a saveable model specification from the current event log DFG
+                        dfg_df, _, start_activities, end_activities = build_dfg_summary(
+                            event_log_df,
+                            mapping.case_id,
+                            mapping.activity,
+                            mapping.timestamp,
+                        )
+    
+                        model_dfg_dict = {
+                            (row.from_activity, row.to_activity): int(row.frequency)
+                            for row in dfg_df.itertuples(index=False)
+                        }
+                        model_start_acts = {str(activity): int(count) for activity, count in start_activities.items()}
+                        model_end_acts = {str(activity): int(count) for activity, count in end_activities.items()}
+    
+                        # Creating a file that can be downloaded and loaded back in in the future
+                        model_spec = build_model_spec(
+                            model_name=model_name,
+                            dfg_dict=model_dfg_dict,
+                            start_acts=model_start_acts,
+                            end_acts=model_end_acts,
+                        )
 
             if net is not None and initial_marking is not None and final_marking is not None:
                 st.success(f"Model ready: {model_name}")
