@@ -1347,7 +1347,7 @@ with analytics_tab:
     st.header("Analytics")
 
     case_tab, variants_tab, activity_tab, skipped_tab, transitions_tab, wip_tab = st.tabs(
-        ["Case-Level Analytics", "Variant Analytics", "Activity Analytics", "Skipped Activities", "Work-in-Progress (WIP) over Time", ]
+        ["Case-Level Analytics", "Variant Analytics", "Activity Analytics", "Skipped Activities", "Transition Analytics", "Work-in-Progress (WIP) over Time"]
     )
 
     case_summary = compute_case_summary(event_log_df, mapping.case_id, mapping.activity, mapping.timestamp)
