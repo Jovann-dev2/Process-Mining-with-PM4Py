@@ -874,8 +874,9 @@ with st.sidebar:
                 help="Higher values keep only stronger dependencies.",
             )
 
-    show_full_dfg = st.checkbox("Show full-process DFG", value=False)
-    show_section_dfgs = st.checkbox("Show section-specific DFGs (if available)", value=False)
+    show_full_dfg = st.checkbox("Show full-process DFG", value=True)
+    if section_summary is not None:
+        show_section_dfgs = st.checkbox("Show section-specific DFGs", value=False)
     show_petri_net = st.checkbox("Attempt Petri net discovery", value=True)
 
     conformance_metric = st.selectbox(
@@ -895,85 +896,86 @@ with st.sidebar:
 
 # This section ensures that a file can be uploaded and that columns can be mapped to required standards.
 
-uploaded_file = st.file_uploader("Upload CSV event log", type=["csv"])
-if uploaded_file is None:
-    st.info("Upload a CSV file to begin.")
-    st.stop()
+with st.expander("Setup", expanded=True):
+    uploaded_file = st.file_uploader("Upload CSV event log", type=["csv"])
+    if uploaded_file is None:
+        st.info("Upload a CSV file to begin.")
+        st.stop()
+    
+    try:
+        raw_df = load_csv(uploaded_file.getvalue())
+    except Exception as exc:
+        st.error(f"Could not read the CSV file: {exc}")
+        st.stop()
+    
+    if raw_df.empty:
+        st.error("The uploaded CSV is empty.")
+        st.stop()
+    
+    with st.expander("Preview Uploaded Data", expanded=False):
+        st.dataframe(raw_df.head(20), use_container_width=True)
 
-try:
-    raw_df = load_csv(uploaded_file.getvalue())
-except Exception as exc:
-    st.error(f"Could not read the CSV file: {exc}")
-    st.stop()
+    st.write("##Column Mapping")
+    columns = list(raw_df.columns)
+    case_default = _default_index(columns, CASE_SYNONYMS, 0)
+    activity_default = _default_index(columns, ACTIVITY_SYNONYMS, 1)
+    timestamp_default = _default_index(columns, TIMESTAMP_SYNONYMS, 2)
+    
+    map_col1, map_col2, map_col3 = st.columns(3)
+    with map_col1:
+        case_col = st.selectbox("Case ID column", options=columns, index=case_default)
+    with map_col2:
+        activity_col = st.selectbox("Activity column", options=columns, index=activity_default)
+    with map_col3:
+        timestamp_col = st.selectbox("Timestamp column", options=columns, index=timestamp_default)
 
-if raw_df.empty:
-    st.error("The uploaded CSV is empty.")
-    st.stop()
+    timestamp_mode = st.radio("Timestamp parsing", options=["Auto-detect", "Provide a format"], horizontal=True)
+    timestamp_format = None
+    if timestamp_mode == "Provide a format":
+        timestamp_format = st.text_input("Datetime format", value="%Y-%m-%d %H:%M:%S")
 
-with st.expander("🔍 Preview uploaded data", expanded=True):
-    st.dataframe(raw_df.head(20), use_container_width=True)
-
-st.subheader("Map Columns")
-columns = list(raw_df.columns)
-case_default = _default_index(columns, CASE_SYNONYMS, 0)
-activity_default = _default_index(columns, ACTIVITY_SYNONYMS, 1)
-timestamp_default = _default_index(columns, TIMESTAMP_SYNONYMS, 2)
-
-map_col1, map_col2, map_col3 = st.columns(3)
-with map_col1:
-    case_col = st.selectbox("Case ID column", options=columns, index=case_default)
-with map_col2:
-    activity_col = st.selectbox("Activity column", options=columns, index=activity_default)
-with map_col3:
-    timestamp_col = st.selectbox("Timestamp column", options=columns, index=timestamp_default)
-
-timestamp_mode = st.radio("Timestamp parsing", options=["Auto-detect", "Provide a format"], horizontal=True)
-timestamp_format = None
-if timestamp_mode == "Provide a format":
-    timestamp_format = st.text_input("Datetime format", value="%Y-%m-%d %H:%M:%S")
-
-config = AppConfig(
-    model_source=model_source,
-    miner_label=miner_label,
-    heuristics_threshold=heuristics_threshold,
-    show_full_dfg=show_full_dfg,
-    show_section_dfgs=show_section_dfgs,
-    show_petri_net=show_petri_net,
-    conformance_metric=conformance_metric,
-    timestamp_mode=timestamp_mode,
-    timestamp_format=timestamp_format,
-)
-mapping = ColumnMapping(case_id=case_col, activity=activity_col, timestamp=timestamp_col)
-
-try:
-    event_log_df, diagnostics = prepare_event_log(
-        raw_df,
-        mapping.case_id,
-        mapping.activity,
-        mapping.timestamp,
-        config.timestamp_mode,
-        config.timestamp_format,
+    config = AppConfig(
+        model_source=model_source,
+        miner_label=miner_label,
+        heuristics_threshold=heuristics_threshold,
+        show_full_dfg=show_full_dfg,
+        show_section_dfgs=show_section_dfgs,
+        show_petri_net=show_petri_net,
+        conformance_metric=conformance_metric,
+        timestamp_mode=timestamp_mode,
+        timestamp_format=timestamp_format,
     )
-except Exception as exc:
-    st.error(f"Failed to prepare the event log: {exc}")
-    st.stop()
+    mapping = ColumnMapping(case_id=case_col, activity=activity_col, timestamp=timestamp_col)
 
-if event_log_df.empty:
-    st.error("No valid events remain after parsing and cleaning. Please adjust the column mapping or timestamp format.")
-    st.stop()
-
-removed_total = diagnostics["original_rows"] - diagnostics["remaining_rows"]
-if removed_total > 0:
-    st.warning(
-        f"Removed {removed_total:,} row(s): "
-        f"{diagnostics['removed_empty_required']:,} with missing Case ID/Activity and "
-        f"{diagnostics['removed_bad_timestamps']:,} with invalid timestamps."
-    )
-
-summary = compute_log_summary(event_log_df, mapping.case_id, mapping.timestamp)
-section_summary = compute_section_summary(event_log_df, mapping.case_id)
-
-_df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download Cleaned and Formatted Event Log")
+    try:
+        event_log_df, diagnostics = prepare_event_log(
+            raw_df,
+            mapping.case_id,
+            mapping.activity,
+            mapping.timestamp,
+            config.timestamp_mode,
+            config.timestamp_format,
+        )
+    except Exception as exc:
+        st.error(f"Failed to prepare the event log: {exc}")
+        st.stop()
+    
+    if event_log_df.empty:
+        st.error("No valid events remain after parsing and cleaning. Please adjust the column mapping or timestamp format.")
+        st.stop()
+    
+    removed_total = diagnostics["original_rows"] - diagnostics["remaining_rows"]
+    if removed_total > 0:
+        st.warning(
+            f"Removed {removed_total:,} row(s): "
+            f"{diagnostics['removed_empty_required']:,} with missing Case ID/Activity and "
+            f"{diagnostics['removed_bad_timestamps']:,} with invalid timestamps."
+        )
+    
+    summary = compute_log_summary(event_log_df, mapping.case_id, mapping.timestamp)
+    section_summary = compute_section_summary(event_log_df, mapping.case_id)
+    
+    _df_download("cleaned_event_log.csv", event_log_df, "⬇️ Download Cleaned and Formatted Event Log")
 
 # -----------------------------------------------------------------------------
 # Tabs
