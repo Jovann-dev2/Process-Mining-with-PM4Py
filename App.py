@@ -1408,7 +1408,6 @@ with analytics_tab:
                 display_case_summary[["case_id", "events_per_case", "start", "end", "throughput"]],
                 use_container_width=True,
             )
-            _df_download("case_summary.csv", display_case_summary, "⬇️ Download case summary")
 
     # Variant analysis
     with variants_tab:
@@ -1449,7 +1448,6 @@ with analytics_tab:
             )
         )
         st.altair_chart(variant_bar + variant_line, use_container_width=True)
-        _df_download("variants.csv", variants_df, "⬇️ Download variant analysis")
 
     # Activity analytics
     with activity_tab:
@@ -1464,8 +1462,6 @@ with analytics_tab:
                 activity_service_df.sort_values("Average time to next activity (days)", ascending=False).head(DEFAULT_TOP_N),
                 use_container_width=True,
             )
-        _df_download("activity_frequency.csv", activity_freq_df, "⬇️ Download activity frequency")
-        _df_download("activity_service_time.csv", activity_service_df, "⬇️ Download activity service-time summary")
 
     # Skip analytics
     with skipped_tab:
@@ -1524,7 +1520,7 @@ with analytics_tab:
             for row in skip_df.itertuples(index=False):
                 activity = row[0]
                 case_ids = row[5]
-                with st.expander(f"{activity} — {len(case_ids)} case(s) skipping"):
+                with st.expander(f"Number of cases: {activity} — {len(case_ids)}"):
                     if not case_ids:
                         st.caption("All cases include this activity.")
                     else:
@@ -1533,7 +1529,6 @@ with analytics_tab:
         long_skip_df = skip_df[["Activity", "Missing case IDs"]].explode("Missing case IDs").rename(
             columns={"Missing case IDs": "Case ID"}
         )
-        _df_download("cases_skipping_activities.csv", long_skip_df, "⬇️ Download skipped-activity pairs")
 
     # Transition analytics
     with transitions_tab:
@@ -1579,8 +1574,6 @@ with analytics_tab:
                 )
             )
             st.altair_chart(hist, use_container_width=True)
-            _df_download("transition_pairs.csv", transition_pairs_df, "⬇️ Download transition pairs")
-            _df_download("transition_stats.csv", transition_stats_df, "⬇️ Download transition statistics")
 
     # Work in progress
     with wip_tab:
@@ -1605,4 +1598,3 @@ with analytics_tab:
                 )
             )
             st.altair_chart(wip_chart, use_container_width=True)
-            _df_download("wip_timeseries.csv", wip_df, "⬇️ Download WIP time series")
